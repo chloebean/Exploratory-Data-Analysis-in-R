@@ -1,0 +1,510 @@
+---
+title: "HackathonP3Problem"
+author: "Gazal"
+date: "22 September 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r global `functions}
+library(graphics)
+library(ggplot2)
+
+getmode <- function(v)
+{
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+color_v=c("gray37","burlywood3","peachpuff4",
+          "chocolate1","darkgoldenrod1","coral2",
+          "mediumorchid1","cadetblue")
+
+```
+
+# Movie Database
+
+## About Database
+```{r dataset}
+  library(pastecs)
+
+  movie_df = read.csv("D:/STUDY/hackathon/hacaktontopic/Data\ Set\ -\ movies_withNullValues.csv")
+  print(class(movie_df))
+  print(summary(movie_df))
+  print(str(movie_df))
+  print(colnames(movie_df))
+
+  print(stat.desc(movie_df))
+```
+
+##Converting False Factors into integer manually
+
+```{r replace false factors into integer}
+
+# domgross
+# intgross
+# budget_2013.
+# domgross_2013.
+# intgross_2013.
+
+movie_df$domgross = as.numeric(paste(movie_df$domgross))
+movie_df$intgross = as.numeric(paste(movie_df$intgross))
+movie_df$budget_2013. = as.numeric(paste(movie_df$budget_2013.))
+movie_df$domgross_2013. = as.numeric(paste(movie_df$domgross_2013.))
+movie_df$intgross_2013. = as.numeric(paste(movie_df$intgross_2013.))
+
+#print(str(movie_df))
+print(summary(movie_df))
+```
+## understanding missing values
+
+```{r explorating null values in dataset, echo=FALSE}
+library(mice)
+library(VIM)
+
+data_pattern = md.pattern(movie_df)
+
+print(data_pattern)
+
+imputation_plot = aggr(movie_df,
+                       col = color_v,
+                       numbers = TRUE,
+                       sortVars = FALSE,
+                       labels = names(movie_df),
+                       cex.axis = 0.9,
+                       gap = 2,
+                       ylabs = c("Missing Data","Pattern"))
+print(imputation_plot)
+```
+
+```{r missing values percentage}
+  pMiss <- function(x){sum(is.na(x))/length(x)*100} 
+  apply(movie_df,2,pMiss) 
+```
+
+##1. Summative Analysis describing the number of
+  a. Columns
+  b. rows
+  c. names of different columns
+  d. The class types of the columns
+
+```{r q1}
+
+# a: columns
+
+  total_cols = ncol(movie_df)
+  cat("\n Number of columns: ", total_cols)
+  
+# b: rows
+  
+  total_rows = nrow(movie_df)
+  cat("\n Number of rows: ", total_rows)
+  
+# c: names of different columns
+  
+  total_col_names = colnames(movie_df)
+  cat("\n Number of column names: \n")
+  print(total_col_names)
+  
+# The class types of the columns
+  
+  print("\n Class types: ")
+  total_class_types = vector()
+  for(i in 1:total_cols)
+  {
+    total_class_types[i] = class(movie_df[1,i])
+    cat("\n Type of ", total_col_names[i]," is ", total_class_types[i])  
+  }
+
+```
+
+##2. Check the Data Quality of the data. If you realize there are null values in it, use Data Imputation for filling the data. Justify the methodolog
+```{r association, message=FALSE, warning=FALSE}
+
+# assoication between code -> year and binary
+  code_year = as.numeric(substr(movie_df$code, 1, 4))
+  code_binary = as.factor(substr(movie_df$code, 5, 8))
+  
+  plot(code_year,movie_df$year, type= "l", col = color_v)
+  plot(as.numeric(code_binary),
+       as.numeric(movie_df$binary), type = "l", col = color_v)
+
+# assoication between year -> period-code
+  plot(movie_df$year, movie_df$period.code, type = 'b', col = color_v)
+  
+# assoication between year -> decade-code
+  plot(movie_df$year, movie_df$decade.code, type = 'b', col = color_v)
+  
+```
+
+```{r q2, message=FALSE, warning=FALSE}
+#imputing period code
+
+dat = movie_df
+dat_imp<-dat
+for (i in 1:nrow(dat)) {
+   if (is.na(dat[i, 14])) {
+      if(dat$year[i]>=1985 & dat$year[i]<1990){
+       dat_imp[i, 14] =6
+      }else if(1980<=dat$year[i] & dat$year[i]<1985){
+       dat_imp[i, 14] =7}else if(1975<=dat$year[i] &dat$year[i]<1980){
+         dat_imp[i, 14] =8}else if(1970<=dat$year[i] & dat$year[i]<1975){
+         dat_imp[i, 14] =9}else{dat_imp[i, 14] =1}
+     
+   }
+}
+
+
+#imputing decade code
+for (i in 1:nrow(dat)) {
+   if (is.na(dat[i, 15])) {
+      if(dat$year[i]>=2010){
+       dat_imp[i, 15] =1
+      }else if(1980<=dat$year[i] & dat$year[i]<1990){
+       dat_imp[i, 15] =4}else if(1970<=dat$year[i] &dat$year[i]<1980){
+         dat_imp[i, 15] =5}
+     
+   }
+}
+#convert intgross to numeric
+dat_imp$intgross<-as.numeric(paste(dat$intgross))
+
+#median intgross
+intgross_median<-median(dat_imp$intgross,na.rm = TRUE)
+
+#convert intgross_2013 to numeric
+dat_imp$intgross_2013.<-as.numeric(paste(dat$intgross_2013.))
+
+#mmedian intgross_2013
+intgross_2013_median<-median(dat_imp$intgross_2013.,na.rm = TRUE)
+
+#convert domgross to numeric
+dat_imp$domgross<-as.numeric(paste(dat$domgross))
+
+#median domgross
+domgross_median<-median(dat_imp$domgross,na.rm = TRUE)
+
+#convert domgross_2013 to numeric
+dat_imp$domgross_2013.<-as.numeric(paste(dat$domgross_2013.))
+
+#median domgross
+domgross_2013_median<-median(dat_imp$domgross_2013.,na.rm = TRUE)
+
+#CODE COVERSION
+dat_imp$code<-as.character(dat_imp$code)
+
+#median of budget
+budget_median<-median(dat_imp$budget,na.rm = TRUE)
+#imputing remaining data
+for (i in 1:nrow(dat_imp)) {
+   if (is.na(dat_imp[i, 9])) {
+     dat_imp[i, 9] =intgross_median 
+   }
+  if (is.na(dat_imp[i, 8])) {
+     dat_imp[i, 8] =domgross_median 
+     
+  }
+   if (is.na(dat_imp[i,12])) {
+     dat_imp[i,12 ] =domgross_2013_median 
+     
+   }
+   if (is.na(dat_imp[i, 13])) {
+     dat_imp[i,13 ] =intgross_2013_median
+     
+   }
+  if (is.na(dat_imp[i,10 ])) {
+     dat_imp[i,10]<-paste(dat_imp$year[i],dat_imp$binary[i],sep= "")
+   
+  }
+   if (is.na(dat_imp[i, 7])) {
+     dat_imp[i,7 ] =budget_median
+     
+   }
+  
+}
+dat_imp$code <- as.factor(dat_imp$code)
+print(summary(dat_imp))
+
+movie_df = dat_imp
+print(stat.desc(movie_df))
+  
+```
+
+## after replacing null values (data imputation)
+
+```{r explorating null values in dataset after, echo=FALSE}
+data_pattern = md.pattern(movie_df)
+
+print(data_pattern)
+
+imputation_plot = aggr(movie_df,
+                       col = color_v,
+                       numbers = TRUE,
+                       sortVars = FALSE,
+                       labels = names(movie_df),
+                       cex.axis = 0.9,
+                       gap = 2,
+                       ylabs = c("Missing Data","Pattern"))
+print(imputation_plot)
+```
+## 3. Do Univariate Analysis of all the variables present
+
+  Type of Variables:
+  1) Quanititative -> Numeric
+  2) Qualitative -> Categorical(Factor)
+  
+### Understanding numeric data
+
+```{r continuous, message=FALSE, warning=FALSE}
+
+# dataset of continuous variables of data
+int_df <- Filter(is.numeric, movie_df)
+#print(head(int_df))
+
+# removing SL_NO and Mobile no as they are not very much useful for analysis
+int_df <- int_df[c(-1,-2)]
+
+# continuous variable colnames
+sdf_cols_int <- colnames(int_df)
+
+print(sdf_cols_int)
+
+for(i in 1:ncol(int_df))
+{
+  # remove null from column
+  column_name = sdf_cols_int[i]
+  cat("\n\n column : ",column_name)
+  
+  column_int_df = int_df[i]
+  column_int_df = column_int_df[!apply(is.na(column_int_df) |
+                                             column_int_df == "", 1, all),]
+  
+  # count of total values
+  total_count_column = nrow(int_df[i])
+  
+  # count of null values  
+  column_int_df_null_count = total_count_column - length(column_int_df)
+
+  # percentage of null in column
+  column_null_perc = column_int_df_null_count/total_count_column
+  cat("\n null value percentage : ", column_null_perc)
+  
+  # range of column
+  column_range = range(column_int_df)
+  cat("\n range : ", column_range)
+  
+  # printing quantile of column
+  column_quantile = quantile(column_int_df)
+  cat("\n quantile : ", column_quantile)
+  
+  # printing minimum of column
+  column_min = min(column_int_df)
+  cat("\n minimum : ", column_min)
+  
+  # printing maximum of column
+  column_max = max(column_int_df)
+  cat("\n maximum : ", column_max)
+  
+  # printing mean of column
+  column_mean = mean(column_int_df)
+  cat("\n mean : ", column_mean)
+  
+  # printing median of column
+  column_median = median(column_int_df)
+  cat("\n median : ", column_median)
+  
+  # printing mode of column using user defined function
+  column_mode = getmode(column_int_df)
+  cat("\n mode : ", column_mode)
+    
+  # Median Absolute Deviation
+  column_mad = mad(column_int_df)
+  cat("\n median absolute deviation : ", column_mad)
+  
+  # variance
+  column_variance = var(column_int_df)
+  cat("\n variance : ", column_variance)
+  
+  # standanrd deviation
+  column_sd = sd(column_int_df)
+  cat("\n standard deviance : ", column_sd)
+  
+  # understanding scattered data
+  plot(column_int_df, xlab = column_name, ylab = "Values",
+             col = color_v,
+             main = paste("Scatter Plot for", column_name))
+  # understanding frequency distribution of values
+  hist(column_int_df, xlab = column_name, ylab = "Frequency",
+             col = color_v,
+             main = paste("Histogram for", column_name))
+  
+  # undertstanding outliers using boxplot
+  boxplot(column_int_df, xlab = column_name,
+               col=color_v)
+  
+
+}
+
+```
+
+### Understanding numeric data
+
+```{r categorical, message=FALSE, warning=FALSE}
+library(plyr)
+
+factor_df <- Filter(is.factor, movie_df)
+
+# removing name and email id as they are not very much useful for analysis
+factor_df <- factor_df[c(-1,-2)]
+
+# factor variable colnames
+sdf_cols_factor <- colnames(factor_df)
+
+print(sdf_cols_factor)
+
+for(i in 1:length(sdf_cols_factor))
+{
+  column_name = sdf_cols_factor[i]
+  cat("\n\n Factor : ")
+  print(column_name)
+  column_factor_df = as.factor(factor_df[,i])
+
+  # count of total values
+  total_count_column = nrow(factor_df[i])
+  
+  cat("\n levels : ")
+  print(levels(column_factor_df))
+  
+  cat("\n number of levels : ")
+  print(nlevels(column_factor_df))
+  
+  cat("\n Orders? : ")
+  print(is.ordered(column_factor_df))
+  
+  mode_fac = getmode(column_factor_df)
+  cat("\n Mode : ")
+  print(mode_fac)
+  
+  count_fac = count(column_factor_df)
+  print(count_fac)
+  
+  # understanding frequency
+  barplot(prop.table(table(column_factor_df)))  
+  
+  # understanding relative frequency of values
+  
+  labels <- count_fac$x
+  x <- count_fac$freq
+  
+  pie(x, labels, main = column_name, col = rainbow(length(x)))
+
+}
+
+```
+
+## 4. The target variable in this dataset is the attribute named "binary" which has two predefined variables FAIL and PASS. Do a bivariate analysis of this variable with all the other attributes. Also give your inferences from the graph generated.
+
+```{r bivariate plots, echo=FALSE, message=FALSE, warning=FALSE}
+for(i in 1:total_cols)
+{
+    plot( movie_df$binary, movie_df[,i],
+       xlab = "Binary", ylab = total_col_names[i], col = color_v)
+  
+       legend(2000,9.5, legend = levels(movie_df$binary))
+  
+     plot(movie_df[,i], movie_df$binary,
+       ylab = "Binary", xlab = total_col_names[i], col = color_v)
+        
+       legend(2000,9.5, legend = levels(movie_df$binary))
+}
+
+
+```
+
+## 5. Draw a multivariate graph for all the variables
+
+```{r multivariate graph, echo=FALSE, message=FALSE, warning=FALSE}
+  plot(movie_df)
+```
+
+## 6. Also draw a graph between year and budget
+
+```{r q6, message=FALSE, warning=FALSE}
+
+
+plot(movie_df$year,movie_df$budget)
+plot(movie_df$year,movie_df$budget,
+           type = 'l')
+
+#ggplot(data = movie_df, aes(x = year, y = budget)) + geom_hline()
+
+# ggplot( movie_df, aes(movie_df$year) ) + 
+#   geom_line( aes( y = movie_df$budget ) ) +
+#   labs( title = "graph")
+
+
+ggplot( movie_df, aes( x= movie_df$year, y = movie_df$budget ) ) + geom_smooth(model = "lm")
+
+ggplot( movie_df, aes( x= movie_df$year, y = movie_df$budget) ) + geom_line()
+
+
+
+
+```
+
+## 7. Apply PCA on this dataset after removing categorical variables
+
+Prerequisite for applying PCA:
+1) Only Numeric Data present
+2) no Null values are present
+
+```{r pca, message=FALSE, warning=FALSE}
+
+movie_NA_df = data.frame()
+movie_df <- Filter(is.numeric, movie_df)
+movie_NA_df <- vapply(as.data.frame(movie_df), function(x)
+                    replace(x, is.na(x), median(x,na.rm=TRUE)),
+                    FUN.VALUE=numeric(nrow(movie_df)) )
+
+print(head(movie_NA_df))
+
+#attitude_PCA = princomp(attitude_df)
+movie_NA_PCA = princomp(movie_NA_df)
+
+#print(names(attitude_PCA))
+print(names(movie_NA_PCA))
+
+#biplot(attitude_PCA)
+
+biplot(movie_NA_PCA, col = color_v)
+
+sd_pca<-movie_NA_PCA$sdev
+
+# get variance of pca
+ var_pca = sd_pca ^ 2
+ 
+ # variance proportion respective to sum
+ proportion_var_pca = var_pca/sum(var_pca)
+ 
+ # variance plot
+ plot(proportion_var_pca,
+      xlab = "Principal Components",
+      ylab = "Proportion of Variance Explained",
+      type = "b",
+      col = color_v)
+ 
+ # cumulative variance plot
+ plot(cumsum(proportion_var_pca),
+      xlab = "Principal Components",
+      ylab = "Proportion of Variance Explained",
+      type = "b",
+      col = color_v)
+
+ # score plot
+ plot(movie_NA_PCA$scores[,1], movie_NA_PCA$scores[,2], col = color_v)
+```
+
+
